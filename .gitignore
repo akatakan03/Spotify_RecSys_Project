@@ -1,0 +1,9 @@
+# Veri dosyaları ve sesler GitHub'a gitmeyecek
+data/
+*.parquet
+*.mp3
+*.webm
+
+# Python'un gereksiz önbellek dosyaları
+__pycache__/
+.ipynb_checkpoints/
