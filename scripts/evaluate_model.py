@@ -35,33 +35,38 @@ k_komsuluk = 3 # Her şarkı için en iyi 3 öneriyi (Top-K) test edeceğiz
 
 print(f"Sistemdeki {len(df)} şarkının her biri için Top-{k_komsuluk} öneri test ediliyor...")
 
+# YENİ EKLENEN: Çeşitlilik (Diversity) Takibi İçin
+onerilen_essiz_sanatcilar = set()
+sistemdeki_toplam_sanatcilar = df['artist_name'].nunique()
+
 for index in range(len(df)):
     # Bir şarkının diğer tüm şarkılarla olan benzerlik skorlarını al
     skorlar = list(enumerate(benzerlik_matrisi[index]))
-    
-    # Büyükten küçüğe sırala
     sirali_skorlar = sorted(skorlar, key=lambda x: x[1], reverse=True)
-    
-    # Kendisini (1.0) atla ve en yakın 3 komşuyu al
     en_yakinlar = sirali_skorlar[1 : k_komsuluk + 1] 
     
-    # Bu 3 komşunun benzerlik skorlarını % formatına çevir ve ortalamasını al
+    # Benzerlik skorlarını hesapla
     sarki_ortalama_skoru = np.mean([((skor + 1) / 2) * 100 for idx, skor in en_yakinlar])
-    
-    # Sistemin genel toplamına ekle
     toplam_benzerlik += sarki_ortalama_skoru
+    
+    # YENİ EKLENEN: Önerilen şarkıların sanatçılarını havuza ekle
+    for idx, skor in en_yakinlar:
+        onerilen_sanatci = df.iloc[idx]['artist_name']
+        onerilen_essiz_sanatcilar.add(onerilen_sanatci)
 
-# 5. Sistemin Genel Başarı Notunu (Global Confidence) Hesaplama
+# 5. Sistemin Genel Başarı Notlarını (Metrics) Hesaplama
 genel_ortalama = toplam_benzerlik / len(df)
 
-print("-" * 50)
-print(f"🎯 SİSTEMİN GENEL BAŞARI (CONFIDENCE) SKORU: %{genel_ortalama:.2f}")
-print("-" * 50)
+# YENİ EKLENEN: Catalog Coverage (Katalog Kapsayıcılığı) Formülü
+catalog_coverage = (len(onerilen_essiz_sanatcilar) / sistemdeki_toplam_sanatcilar) * 100
 
-# Sonucu Yorumlama (Thresholds)
-if genel_ortalama > 85:
-    print("Sonuç: MÜKEMMEL! Model şarkılar arasında çok güçlü müzikal bağlar kurabiliyor.")
-elif genel_ortalama > 75:
-    print("Sonuç: BAŞARILI. Öneriler tutarlı ancak veri seti büyüdükçe daha da iyileşecektir.")
+print("-" * 70)
+print(f"🎯 MÜZİKAL UYUM (CONFIDENCE) SKORU: %{genel_ortalama:.2f}")
+print(f"🌍 CATALOG COVERAGE (Çeşitlilik): %{catalog_coverage:.2f} (Toplam {sistemdeki_toplam_sanatcilar} sanatçıdan {len(onerilen_essiz_sanatcilar)} tanesi önerildi)")
+print("-" * 70)
+
+# Sonucu Yorumlama
+if catalog_coverage > 20: 
+    print("Sonuç: HARİKA! Sistem sadece hit parçaları değil, kütüphanedeki gizli kalmış (Long-tail) sanatçıları da keşfedip öneriyor. Popularity Bias başarıyla kırıldı.")
 else:
-    print("Sonuç: DÜŞÜK. Veri havuzu (Cold Start) çok küçük olduğu için model zorlanıyor.")
+    print("Sonuç: DİKKAT. Çeşitlilik düşük. Sistem hep aynı popüler sanatçıların etrafında dönüyor olabilir.")
