@@ -35,7 +35,6 @@ class SpotifyRecommenderPipeline:
         # 4. Veri Temizliği ve Standardization (Ölçeklendirme)
         self.feature_cols = ['bpm', 'energy', 'spectral_centroid', 'zero_crossing_rate', 'spectral_rolloff', 'harmonic_ratio', 'mfcc_1', 'mfcc_2', 'mfcc_3', 'mfcc_4', 'mfcc_5']
         
-        # ---> İŞTE HAYAT KURTARAN SATIR: Eksik/Bozuk verileri (NaN) sıfır ile dolduruyoruz (Data Cleaning) <---
         self.df_merged[self.feature_cols] = self.df_merged[self.feature_cols].fillna(0)
 
         self.scaler = StandardScaler()
@@ -46,7 +45,6 @@ class SpotifyRecommenderPipeline:
                                          self.df_metadata['artist_name'] + " " + 
                                          self.df_metadata['album_name']).str.lower()
         
-        # Metinlerde de olası NaN değerlerini temizliyoruz
         self.df_metadata['text_tags'] = self.df_metadata['text_tags'].fillna("")
 
         self.vectorizer = TfidfVectorizer(stop_words='english')
@@ -60,17 +58,24 @@ class SpotifyRecommenderPipeline:
         if not seed_indices:
             return []
 
-        # 1. Content-Based (Audio) Puanı
-        user_profile = self.df_merged[self.df_merged['track_uri'].isin(seed_uris)][self.feature_cols].mean().values.reshape(1, -1)
-        audio_sims = (cosine_similarity(user_profile, self.df_merged[self.feature_cols].values)[0] + 1) / 2
+        # 1. Content-Based (Audio) Puanı ve Fail-Safe Koruması
+        seed_df = self.df_merged[self.df_merged['track_uri'].isin(seed_uris)]
         
-        # 2. Collaborative (Co-occurrence) Puanı (TÜM MATRİS)
+        if seed_df.empty:
+            # Şarkının sesi yoksa sistemi çökertme, ses benzerliğini tamamen 0 say
+            audio_sims = np.zeros(len(self.df_merged))
+        else:
+            user_profile = seed_df[self.feature_cols].mean().values.reshape(1, -1)
+            user_profile = np.nan_to_num(user_profile)
+            audio_sims = (cosine_similarity(user_profile, self.df_merged[self.feature_cols].values)[0] + 1) / 2
+        
+        # 2. Collaborative (Co-occurrence) Puanı
         co_scores_full = np.array(self.sparse_matrix[seed_indices, :].sum(axis=0)).flatten()
         
-        # 3. BOYUT HİZALAMA (Dimensionality Alignment)
+        # 3. Boyut Hizalama
         merged_uris = self.df_merged['track_uri'].tolist()
         merged_matrix_indices = [self.uri_to_idx[uri] for uri in merged_uris]
-        co_scores = co_scores_full[merged_matrix_indices]
+        co_scores = co_scores_full[merged_matrix_indices] 
         
         if co_scores.max() > 0:
             co_scores = co_scores / co_scores.max()
@@ -116,7 +121,3 @@ class SpotifyRecommenderPipeline:
                 'type': 'scenario'
             })
         return oneriler
-
-if __name__ == "__main__":
-    pipeline = SpotifyRecommenderPipeline()
-    print("Test başarılı!")

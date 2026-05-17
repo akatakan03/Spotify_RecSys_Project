@@ -1,7 +1,6 @@
 import streamlit as st
 import sys
 import os
-import re
 
 # --- ALTYAPI BAĞLANTILARI ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'scripts')))
@@ -180,23 +179,21 @@ st.markdown("<br>", unsafe_allow_html=True)
 if st.button("Benim İçin Keşfet"):
     if kullanici_sorgusu:
         # 1. AKILLI YÖNLENDİRME (Smart Routing): Şarkı mı, Ruh Hali mi?
-        safe_query = re.escape(kullanici_sorgusu.strip())
+        arama_metni = kullanici_sorgusu.strip().lower()
         
-        # Kullanıcının yazdığı metin veri setindeki bir şarkı adıyla eşleşiyor mu kontrol ediyoruz
-        matched_songs = pipeline.df_metadata[pipeline.df_metadata['track_name'].str.contains(f"^{safe_query}$", case=False, na=False)]
+        # DİKKAT: Artık metadata'ya değil, doğrudan SADECE sesi analiz edilmiş şarkılara (df_merged) bakıyoruz!
+        matched_songs = pipeline.df_merged[pipeline.df_merged['track_name'].str.lower() == arama_metni]
         
         if not matched_songs.empty:
-            # EĞER ŞARKIYSA: Hibrit Motoru Çalıştır
+            # EĞER ŞARKIYSA: Hibrit Motoru Çalıştır (Bilgi mesajları kaldırıldı)
             secilen_sarki = matched_songs.iloc[0]
             secilen_uri = secilen_sarki['track_uri']
             
-            st.info(f"🎵 **{secilen_sarki['track_name']}** şarkısı algılandı. Akustik ikizleri aranıyor...")
             sonuclar = pipeline.recommend_hybrid([secilen_uri], w_audio=0.2, w_co=0.8, top_n=5)
             sarkilari_goster(sonuclar)
             
         else:
-            # EĞER ŞARKI DEĞİLSE: NLP Senaryo Motorunu Çalıştır
-            st.info(f"✍️ Ruh hali algılandı: **'{kullanici_sorgusu}'**. Kelimelerin hissi müziğe dönüştürülüyor...")
+            # EĞER ŞARKI DEĞİLSE: NLP Senaryo Motorunu Çalıştır (Bilgi mesajları kaldırıldı)
             sonuclar = pipeline.recommend_scenario(kullanici_sorgusu, top_n=5)
             if sonuclar:
                 sarkilari_goster(sonuclar)

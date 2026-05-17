@@ -1,7 +1,7 @@
 import sys
 import os
 
-# Sistemin yol bulma (*Pathfinding*) işlemi. Bu satırların en üstte olması zorunludur!
+# Sistemin yol bulma (*Pathfinding*) işlemi.
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts'))
 
 from flask import Flask, request, jsonify, send_from_directory
